@@ -1,0 +1,13 @@
+aiortc
+aiohttp
+opencv-python-headless
+opencv-python
+av
+flask
+numpy
+pillow
+python-dotenv
+ultralytics
+streamlit
+requests
+

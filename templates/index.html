@@ -1,0 +1,25 @@
+<video id="video" autoplay></video>
+
+<script>
+async function start() {
+    let pc = new RTCPeerConnection();
+
+    pc.ontrack = (event) => {
+        document.getElementById("video").srcObject = event.streams[0];
+    };
+
+    let offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    let response = await fetch("/offer", {
+        method: "POST",
+        body: JSON.stringify(pc.localDescription),
+        headers: {"Content-Type": "application/json"}
+    });
+
+    let answer = await response.json();
+    await pc.setRemoteDescription(answer);
+}
+
+start();
+</script>

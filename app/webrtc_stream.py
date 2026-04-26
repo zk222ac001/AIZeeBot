@@ -1,1 +1,0 @@
-# WebRTC video streaming server for AIZeeBot
