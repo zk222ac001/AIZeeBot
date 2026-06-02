@@ -1,1 +1,0 @@
-# High Level movement control module for AIZeeBot, integrating motor and servo controls to achieve complex navigation and object interaction capabilities.

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TurboPi Video Conference</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      margin-bottom: 1rem;
+    }
+    #remoteVideo {
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      border: 1px solid #ddd;
+      background-color: #000;
+    }
+  </style>
+</head>
+<body>
+  <h1>TurboPi Video Conference</h1>
+  <p>This page establishes a WebRTC connection with the TurboPi robot and displays its camera feed.  Ensure that the robot is running <code>server.py</code> and has started a conference session.</p>
+  <video id="remoteVideo" playsinline autoplay muted></video>
+  <script src="client.js"></script>
+</body>
+</html>

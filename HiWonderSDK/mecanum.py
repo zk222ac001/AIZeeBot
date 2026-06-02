@@ -1,102 +1,78 @@
-import sys # sys → gives access to Python system-level functions
-sys.path.append('/home/pi/TurboPi/') # tells Python where to find external modules
+#!/usr/bin/python3
+# coding=utf8
 
-import math # math → provides mathematical functions like sin, cos, atan2, etc.
-import time # time → allows for time-related functions like sleep
-import HiWonderSDK.ros_robot_controller_sdk as rrc # rrc → custom module for controlling the robot's hardware
+import math
+import sys
+
+sys.path.append("/home/pi/TurboPi/")
+
+import HiwonderSDK.ros_robot_controller_sdk as rrc
+
 
 class MecanumChassis:
-    def __init__(self, board=None, a=67, b=59, wheel_diameter=65, max_duty=100):
-        self.board = board if board else rrc.Board() # Initialize the robot board (communication interface)
-        self.a = a # a → distance from the center of the robot to the wheel along the x-axis
-        self.b = b # b → distance from the center of the robot to the wheel along the y-axis
-        self.wheel_diameter = wheel_diameter # wheel_diameter → diameter of the mecanum wheels in millimeters
-        self.max_duty = max_duty # max_duty → maximum motor duty cycle
+    # A = 67  # mm
+    # B = 59  # mm
+    # WHEEL_DIAMETER = 65  # mm
 
-        self.velocity = 0 # velocity → current linear velocity of the robot in mm/s
-        self.direction = 0 # direction → current movement direction in degrees (0–360)
-        self.angular_rate = 0 # angular_rate → current rotational speed in degrees/s
-
-    # =========================
-    # INTERNAL HELPERS
-    # =========================
-    # Clamp motor speeds to the maximum duty cycle
-    def _clamp(self, value):
-        return max(-self.max_duty, min(self.max_duty, int(value)))
-    
-    # Normalize wheel speeds to ensure they do not exceed the maximum duty cycle 
-    # while maintaining their ratios
-    def _normalize(self, speeds):
-        max_val = max(abs(v) for v in speeds)
-        if max_val > self.max_duty:
-            scale = self.max_duty / max_val
-            speeds = [v * scale for v in speeds]
-        return speeds
-
-    # =========================
-    # MOTOR CONTROL
-    # =========================
-    # Reset all motors to zero speed and clear internal state
-    def reset_motors(self):
-        self.board.set_motor_duty([[i, 0] for i in range(1, 5)])
+    def __init__(self, board=None, a=67, b=59, wheel_diameter=65):
+        self.board = board if board is not None else rrc.Board()
+        self.a = a
+        self.b = b
+        self.wheel_diameter = wheel_diameter
         self.velocity = 0
         self.direction = 0
         self.angular_rate = 0
-    
-    # Set the robot's velocity, direction, and angular rate.
+
+    def reset_motors(self):
+        self.board.set_motor_duty([[1, 0], [2, 0], [3, 0], [4, 0]])
+        self.velocity = 0
+        self.direction = 0
+        self.angular_rate = 0
+
     def set_velocity(self, velocity, direction, angular_rate, fake=False):
         """
-        velocity: mm/s
-        direction: degrees (0–360)
-        angular_rate: rotation speed
+        Use polar coordinates to control movement.
+
+        motor1 v1|  up  |v2 motor2
+                 |      |
+        motor3 v3|      |v4 motor4
+
+        :param velocity: mm/s
+        :param direction: moving direction 0-360 degrees
+        :param angular_rate: chassis rotation speed
+        :param fake: calculate values without sending motor commands
+        :return:
         """
-        rad = math.radians(direction)
-        vx = velocity * math.cos(rad)
-        vy = velocity * math.sin(rad)
+        rad_per_deg = math.pi / 180
+        vx = velocity * math.cos(direction * rad_per_deg)
+        vy = velocity * math.sin(direction * rad_per_deg)
         vp = -angular_rate * (self.a + self.b)
-
-        # Wheel speeds
-        # v1 = front-left, v2 = front-right, v3 = rear-left, v4 = rear-right
-        v1 = vy + vx - vp
-        v2 = vy - vx + vp
-        v3 = vy - vx - vp
-        v4 = vy + vx + vp
-
-        speeds = [v1, v2, v3, v4]
-
-        # Normalize to safe range
-        speeds = self._normalize(speeds)
-
-        # Clamp values
-        speeds = [self._clamp(v) for v in speeds]
+        v1 = int(vy + vx - vp)
+        v2 = int(vy - vx + vp)
+        v3 = int(vy - vx - vp)
+        v4 = int(vy + vx + vp)
 
         if fake:
-            return speeds
+            return
 
-        # Apply motor directions
-        self.board.set_motor_duty([
-            [1, -speeds[0]],
-            [2,  speeds[1]],
-            [3, -speeds[2]],
-            [4,  speeds[3]]
-        ])
-
+        self.board.set_motor_duty([[1, -v1], [2, v2], [3, -v3], [4, v4]])
         self.velocity = velocity
         self.direction = direction
         self.angular_rate = angular_rate
 
-    # =========================
-    # TRANSLATION (XY CONTROL)
-    # =========================
-    def translation(self, vx, vy, fake=False):
-        """
-        vx: velocity in x direction
-        vy: velocity in y direction
-        """
-        velocity = math.hypot(vx, vy)  # better than sqrt(x^2 + y^2)
-
-        # Use atan2 → handles all quadrants correctly
-        direction = math.degrees(math.atan2(vy, vx)) % 360
+    def translation(self, velocity_x, velocity_y, fake=False):
+        velocity = math.sqrt(velocity_x**2 + velocity_y**2)
+        if velocity_x == 0:
+            direction = 90 if velocity_y >= 0 else 270
+        elif velocity_y == 0:
+            direction = 0 if velocity_x > 0 else 180
+        else:
+            direction = math.atan(velocity_y / velocity_x)
+            direction = direction * 180 / math.pi
+            if velocity_x < 0:
+                direction += 180
+            elif velocity_y < 0:
+                direction += 360
 
         if fake:
             return velocity, direction
